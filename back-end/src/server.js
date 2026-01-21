@@ -44,9 +44,7 @@ app.post('/api/articles/:name/upvote', async (req, res) => {
 
   if (updatedArticle) {
 
-    res.status(200).json({
-      message: `The article ${articleName} now has ${updatedArticle.upvotes} upvotes!`
-    })
+    res.status(200).json(updatedArticle)
   } else {
     res.status(404).json({ message: 'Article not found' })
   }

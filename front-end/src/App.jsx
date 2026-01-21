@@ -6,7 +6,7 @@ import './App.css'
 import HomePage from './pages/HomePage'
 import AboutPage from './pages/AboutPage';
 import ArticleListPage from './pages/ArticleListPage.jsx';
-import ArticlePage from './pages/ArticlePage';
+import ArticlePage, {loader as articleLoader} from './pages/ArticlePage';
 import Layout from './Layout';
 import NotFoundPage from './pages/Notfound';
 
@@ -25,7 +25,8 @@ const routes = [{
     element: <ArticleListPage />
   },{
     path: '/articles/:name',
-    element: <ArticlePage />
+    element: <ArticlePage />,
+    loader: articleLoader
   }]
 }]
 
