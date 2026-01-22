@@ -1,5 +1,15 @@
 import express from 'express'
 import {MongoClient, ServerApiVersion} from 'mongodb';
+import admin from 'firebase-admin';
+import fs from 'fs';
+
+const credentials = JSON.parse(
+  fs.readFileSync('./credentials.json')
+)
+
+admin.initializeApp({
+  credential: admin.credential.cert(credentials),
+});
 
 const app = express()
 
@@ -34,20 +44,46 @@ app.get('/api/articles/:name', async (req, res) => {
   }   
 })
 
-app.post('/api/articles/:name/upvote', async (req, res) => {
-  const articleName = req.params.name
-  const updatedArticle = await db.collection('articles').findOneAndUpdate(
-    { name: articleName },
-    { $inc: { upvotes: 1 } },
-    { returnDocument: 'after' } 
-  )
-
-  if (updatedArticle) {
-
-    res.status(200).json(updatedArticle)
+app.use(async (req, res, next) => {
+  const {authtoken} = req.headers
+  if (authtoken) {
+    const user = await admin.auth().verifyIdToken(authtoken)
+    req.user = user;
+    next()
   } else {
-    res.status(404).json({ message: 'Article not found' })
+    res.sendStatus(400);
+  }  
+  
+});
+
+app.post('/api/articles/:name/upvote', async (req, res) => {
+  const {name} = req.params
+  const {uid} = req.user;
+  
+  const article =  await db.collection('articles').findOne({ name });
+
+  const upvotedIds = article.upvotedIds || [];
+  const canUpvote = uid && !upvotedIds.includes(uid);
+
+  if (canUpvote) {
+    const updatedArticle = await db.collection('articles').findOneAndUpdate(
+      { name },
+      {
+        $inc: { upvotes: 1 },
+        $push: { upvotedIds: uid }
+      },
+      { returnDocument: 'after' }
+    )
+
+    if (updatedArticle) {
+      res.status(200).json(updatedArticle)
+    } else {
+      res.status(404).json({ message: 'Article not found' })
+    }
+  } else {
+    res.status(403).json({ message: 'User has already upvoted this article' })
   }
+  
 })
 
 app.post('/api/articles/:name/comments', async (req, res) => {

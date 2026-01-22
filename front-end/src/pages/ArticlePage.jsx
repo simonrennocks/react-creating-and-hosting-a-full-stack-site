@@ -1,9 +1,10 @@
-import {useState} from 'react';
+import { useState } from 'react';
 import { useParams, useLoaderData } from 'react-router-dom';
 import axios from 'axios';
-import CommentsList from '../CommentsList';
-import AddCommentForm from '../AddCommentForm';
-import articles from '../article-content';
+import CommentsList from '../components/CommentsList';
+import AddCommentForm from '../components/AddCommentForm';
+import articles from '../data/article-content';
+import { useUser } from '../useUser';
 
 export default function ArticlePage() {
   const { name } = useParams();
@@ -11,8 +12,12 @@ export default function ArticlePage() {
   const [upvotes, setUpvotes] = useState(initialUpvotes);
   const [comments, setComments] = useState(initialComments);
 
-  async function onUpvoteClicked() {  
-    const response = await axios.post(`/api/articles/${name}/upvote`);
+  const {isLoading, user} = useUser();
+
+  async function onUpvoteClicked() { 
+    const token = user && await user.getIdToken();
+    const headers = token ? {authtoken: token} : {};
+    const response = await axios.post(`/api/articles/${name}/upvote`, null, {headers});
     const updatedArticleData = response.data;
     setUpvotes(updatedArticleData.upvotes);
   }
@@ -21,10 +26,12 @@ export default function ArticlePage() {
   if (!article) return <h1>Article not found!</h1>;
 
   async function onAddComment({ nameText, commentText }) {
+    const token = user && await user.getIdToken();
+    const headers = token ? {authtoken: token} : {};
     const response = await axios.post(`/api/articles/${name}/comments`, {
       postedBy: nameText,     
       text: commentText
-    });
+    }, {headers});
     const updatedArticle = response.data;
     setComments(updatedArticle.comments);
   }
@@ -32,12 +39,13 @@ export default function ArticlePage() {
   return (
     <>
     <h1>{article.title}</h1>
-    <button onClick={onUpvoteClicked}>Upvote</button>
+    {user && <button onClick={onUpvoteClicked}>Upvote</button>}
     <p>This article has {upvotes} upvotes</p>
     {article.content.map((paragraph, key) => (
       <p key={paragraph}>{paragraph}</p>
     ))}
-    <AddCommentForm onAddComment={onAddComment} />
+    {user ?<AddCommentForm onAddComment={onAddComment} />
+    : <p><strong>[ You must be logged in to add comments. ]</strong></p>}
     <CommentsList comments={comments} />
     </>
   );
