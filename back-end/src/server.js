@@ -2,6 +2,11 @@ import express from 'express'
 import {MongoClient, ServerApiVersion} from 'mongodb';
 import admin from 'firebase-admin';
 import fs from 'fs';
+import path from 'path'
+
+import { fileURLToPath } from 'url';  
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const credentials = JSON.parse(
   fs.readFileSync('./credentials.json')
@@ -18,7 +23,9 @@ app.use(express.json())
 let db;
 
 async function connectToDB(){
-   const uri = 'mongodb://127.0.0.1:27017';
+  const uri = !process.env.MONGODB_USERNAME
+  ? 'mongodb://127.0.0.1:27017'
+  : `mongodb+srv://${process.env.MONGODB_USERNAME}:${process.env.MONGODB_PASSWORD}@cluster0.rvxdt4q.mongodb.net/?appName=Cluster0`
   const client = new MongoClient(uri, {  
     serverApi: {
       version: ServerApiVersion.v1,
@@ -32,6 +39,11 @@ async function connectToDB(){
   db = client.db('full-stack-react-db');
 }
 
+app.use(express.static(path.join(__dirname, '../dist')));
+
+app.get(/^(?!\/api).+/, (req, res) => {
+  res.sendFile(path.join(__dirname, '../dist/index.html'));
+});
 
 app.get('/api/articles/:name', async (req, res) => {
   const articleName = req.params.name
@@ -104,16 +116,17 @@ app.post('/api/articles/:name/comments', async (req, res) => {
   }
 })
 
+const PORT = process.env.PORT || 8080;
+
 async function startServer() {
   try {
     await connectToDB();      
-    app.listen(8080, () => {
-      console.log('Server is running on http://localhost:8080')
+    app.listen(PORT, () => {
+      console.log(`Server is running on http://localhost:${PORT}`)
     } );
   } catch (error) {
     console.error('Failed to connect to the database', error);
   }
 }
+
 startServer();
-
-
